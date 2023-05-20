@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <ios>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -24,7 +25,7 @@ private:
     size_t size{0};
     size_t length{0};
 
-    void swap(T &l, T &r);
+    void swap(const T &l, const T &r);
 
 public:
     static_assert(
@@ -276,15 +277,16 @@ public:
         delete [] A;
     }
 
-    void fillArrayWithRandomNumber(T minRange, T maxRange, bool sorted=true);
-    void display(string message) const;
-    void append(T x);
-    void insert(size_t index, T x);
-    T remove(size_t index);
-    size_t linearSearch(T key, bool moveToHead=true);
-    size_t binarySearch(T key);
-    T get(size_t index) const;
-    void set(size_t index, T value);
+    void fillArrayWithRandomNumber(
+        const T minRange, const T maxRange, bool sorted=true);
+    void display(const string message) const;
+    void append(const T x);
+    void insert(const size_t index, const T x);
+    T remove(const size_t index);
+    size_t linearSearch(const T key, bool moveToHead=true);
+    size_t binarySearch(const T key);
+    T get(const size_t index) const;
+    void set(const size_t index, const T value);
     T max() const;
     T min() const;
     T sum() const;
@@ -294,7 +296,7 @@ public:
     void shiftRightRotation();
     void shiftLeft();
     void shiftLeftRotation();
-    void insertSort(T number);
+    void insertSort(const T number);
     bool isSorted() const;
     void reArrange();
     Array* merge(const Array &arr) const;
@@ -305,7 +307,7 @@ public:
 };
 
 template<typename T>
-void Array<T>::fillArrayWithRandomNumber(T minRange, T maxRange, bool sorted)
+void Array<T>::fillArrayWithRandomNumber(const T minRange, const T maxRange, bool sorted)
 {
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -341,14 +343,14 @@ void Array<T>::display(const string message) const
 }
 
 template<typename T>
-void Array<T>::append(T x)
+void Array<T>::append(const T x)
 {
     if (length<size)
         A[length++] = x;
 }
 
 template<typename T>
-void Array<T>::insert(size_t index, T x)
+void Array<T>::insert(const size_t index, const T x)
 {
     if (index>=0 && index<=length)
     {
@@ -362,7 +364,7 @@ void Array<T>::insert(size_t index, T x)
 }
 
 template<typename T>
-T Array<T>::remove(size_t index)
+T Array<T>::remove(const size_t index)
 {
     if (index>=0 && index<=length)
     {
@@ -378,7 +380,7 @@ T Array<T>::remove(size_t index)
 }
 
 template<typename T>
-void Array<T>::swap(T &l, T &r)
+void Array<T>::swap(const T &l, const T &r)
 {
     T tmp=l;
     l=r;
@@ -386,7 +388,7 @@ void Array<T>::swap(T &l, T &r)
 }
 
 template<typename T>
-size_t Array<T>::linearSearch(T key, bool moveToHead)
+size_t Array<T>::linearSearch(const T key, bool moveToHead)
 {
     for(size_t i{0}; i<length; i++)
     {
@@ -408,7 +410,7 @@ size_t Array<T>::linearSearch(T key, bool moveToHead)
 }
 
 template<typename T>
-size_t Array<T>::binarySearch(T key)
+size_t Array<T>::binarySearch(const T key)
 {
     size_t l{0};
     size_t h{length-1};
@@ -443,7 +445,7 @@ T Array<T>::get(const size_t index) const
 }
 
 template<typename T>
-void Array<T>::set(size_t index, T value)
+void Array<T>::set(const size_t index, const T value)
 {
     if(index>=0 && index<length)
     {
@@ -553,7 +555,7 @@ void Array<T>::shiftLeftRotation()
 }
 
 template<typename T>
-void Array<T>::insertSort(T number)
+void Array<T>::insertSort(const T number)
 {
     if(length==size)
     {
@@ -748,8 +750,8 @@ int main (int argc, char *argv[])
     Array<float> A(10,4);
     Array<float> B(10,4);
 
-//    A.display("Array A");
-//    B.display("Array B");
+    A.display("Array A");
+    B.display("Array B");
 
     float minRange = 0.0;
     float maxRange = 10.0;
@@ -757,8 +759,8 @@ int main (int argc, char *argv[])
     A.fillArrayWithRandomNumber(minRange, maxRange);
     B.fillArrayWithRandomNumber(minRange, maxRange);
 
-//    A.display("Array A");
-//    B.display("Array B");
+    A.display("Array A");
+    B.display("Array B");
 
     Array<float> *C = new Array<float>;
 
@@ -776,7 +778,10 @@ int main (int argc, char *argv[])
 
     cout << (*C)[1] << endl;
     auto isEqual = (A==*C);
-    cout << isEqual << endl;
+    A.display("Array A");
+    C->display("Array C");
+    cout << std::boolalpha;
+    cout << "Is A equal C: " << isEqual << endl;
 
     A.display("Array A");
     B.display("Array B");
@@ -804,6 +809,8 @@ int main (int argc, char *argv[])
     const Array<float> y{7,8,9};
     C = x.merge(y);
     C->display("Merged x and y");
+    C->set(0, 1.1);
+    C->display("C->set(0,1.1)");
 
     delete C;
 
