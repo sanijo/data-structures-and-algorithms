@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -6,45 +7,39 @@
 #include <algorithm>
 #include <random>
 #include <type_traits>
+#include <vector>
 
 using std::cout;
 using std::endl;
 using std::string;
+using std::vector;
+
+bool debug=true;
 
 template<typename T>
 class Array
 {
 private:
-    T *A;
-    size_t size;
-    size_t length;
+    T *A{nullptr};
+    size_t size{0};
+    size_t length{0};
 
     void swap(T &l, T &r);
 
 public:
-    Array():
-        size(10),
-        length(0)
-    {
-        A = new T [size];
-        for(size_t i=0; i<length; i++)
-        {
-            A[i] = 0;
-        }
-    }
+    static_assert(
+        std::is_arithmetic<T>::value, "Only numeric types are supported");
 
-    Array(size_t size):
+    Array<T>(){}
+
+    Array<T>(size_t size):
         size(size),
         length(0)
     {
-        A = new T [size];
-        for(size_t i=0; i<length; i++)
-        {
-            A[i] = 0;
-        }
+        A = new T [size]{};
     }
 
-    Array(size_t size, size_t length):
+    Array<T>(size_t size, size_t length):
         size(size),
         length(length)
     {
@@ -52,43 +47,260 @@ public:
         {
             throw std::invalid_argument("Length cannot be greater than size");
         }
+        A = new T [size]{};
+    }
+
+    Array<T>(std::initializer_list<T> values):
+        size(values.size()),
+        length(values.size())
+    {
         A = new T [size];
-        for(size_t i=0; i<length; i++)
+        size_t i=0;
+        for(const T& value: values)
         {
-            A[i] = 0;
+            A[i++]=value;
         }
     }
 
-    ~Array()
+    Array<T>(const Array<T>& obj):
+        size(obj.size),
+        length(obj.length)
+    {
+        A = new T [size];
+        for(size_t i=0; i<length; i++)
+        {
+            A[i]=obj.A[i];
+        }
+    }
+
+    Array<T>& operator=(Array<T>&& obj) noexcept
+    {
+        if(debug)
+        {
+            cout << "In operator=(Array<T>&& obj)." << endl;
+        }
+        if(this != &obj)
+        {
+            // Free existing resource
+            delete [] A;
+            // Copy data pointer and rest of the data from source object
+            A=obj.A;
+            size=obj.size;
+            length=obj.length;
+            // Release the data pointer from the source object so that the
+            // destructor doesnt free memory multiple times
+            obj.A=nullptr;
+            obj.length=0;
+            obj.size=0;
+        }
+        return *this;
+    }
+
+    Array<T> (Array<T>&& obj) noexcept
+    {
+        if(debug)
+        {
+            cout << "In Array<T> (Array<T>&& obj). Moving resource." << endl;
+        }
+        *this=std::move(obj);
+    }
+
+    Array<T>& operator=(const Array<T>& obj)
+    {
+        if(this != &obj)
+        {
+            delete [] A;
+            size=obj.size;
+            length=obj.length;
+            A = new T [size];
+            for(size_t i=0; i<length; ++i)
+            {
+                A[i]=obj.A[i];
+            }
+        }
+        return *this;
+    }
+
+    T& operator[](size_t index)
+    {
+        if(index>=0 && index<length)
+        {
+            return A[index];
+        }
+        throw std::out_of_range("Index is out of bounds");
+    }
+
+    const T& operator[](size_t index) const
+    {
+        if(index>=0 && index<length)
+        {
+            return A[index];
+        }
+        throw std::out_of_range("Index is out of bounds");
+    }
+
+    bool operator==(const Array<T>& obj) const
+    {
+        if(length != obj.length)
+        {
+            return false;
+        }
+        for(size_t i=0; i<length; ++i)
+        {
+            if(A[i] != obj.A[i])
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool operator!=(const Array<T>& obj) const
+    {
+        return !(*this == obj);
+    }
+
+    bool operator<(const Array<T>& obj) const
+    {
+        for(size_t i=0; i<length && i<obj.length; ++i)
+        {
+            if(A[i]<obj.A[i])
+            {
+                return true;
+            }
+            if(A[i]>obj.A[i])
+            {
+                return false;
+            }
+        }
+        return length<obj.length;
+    }
+
+    bool operator>(const Array<T>& obj) const
+    {
+        return !(*this<=obj);
+    }
+
+    bool operator<=(const Array<T>& obj) const
+    {
+        return (*this<obj) || (*this==obj);
+    }
+
+    bool operator>=(const Array<T>& obj) const
+    {
+        return !(*this<obj);
+    }
+
+    Array<T> operator+(const Array<T>& obj) const
+    {
+        if(length != obj.length)
+        {
+            throw std::runtime_error(
+                "Arrays must have the same length for addition");
+        }
+        Array<T> result(size,length);
+        for(size_t i=0; i<length; ++i)
+        {
+            result.A[i] = A[i]+obj.A[i];
+        }
+        return result;
+    }
+
+    Array<T>& operator+=(const Array<T>& obj)
+    {
+        return *this = *this+obj;
+    }
+
+    Array<T> operator-(const Array<T>& obj) const
+    {
+        if(length != obj.length)
+        {
+            throw std::runtime_error(
+                "Arrays must have the same length for subtraction");
+        }
+        Array<T> result(size,length);
+        for(size_t i=0; i<length; ++i)
+        {
+            result.A[i] = A[i]-obj.A[i];
+        }
+        return result;
+    }
+
+    Array<T>& operator-=(const Array<T>& obj)
+    {
+        return *this = *this-obj;
+    }
+
+    Array<T> operator*(const Array<T>& obj) const
+    {
+        if(length != obj.length)
+        {
+            throw std::runtime_error(
+                "Arrays must have the same length for multiplication");
+        }
+        Array<T> result(size,length);
+        for(size_t i=0; i<length; ++i)
+        {
+            result[i] = A[i]*obj.A[i];
+        }
+        return result;
+    }
+
+    Array<T>& operator*=(const Array<T>& obj)
+    {
+        return *this = *this*obj;
+    }
+
+    Array<T> operator/(const Array<T>& obj) const
+    {
+        if(length != obj.length)
+        {
+            throw std::runtime_error(
+                "Arrays must have the same length for division");
+        }
+        Array<T> result(size,length);
+        for(size_t i=0; i<length; ++i)
+        {
+            result.A[i] = A[i]*obj.A[i];
+        }
+        return result;
+    }
+
+    Array<T>& operator/=(const Array<T>& obj)
+    {
+        return *this = *this/obj;
+    }
+
+    ~Array<T>() noexcept
     {
         delete [] A;
     }
 
     void fillArrayWithRandomNumber(T minRange, T maxRange, bool sorted=true);
-    void display(string message);
+    void display(string message) const;
     void append(T x);
     void insert(size_t index, T x);
     T remove(size_t index);
     size_t linearSearch(T key, bool moveToHead=true);
     size_t binarySearch(T key);
-    T get(size_t index);
+    T get(size_t index) const;
     void set(size_t index, T value);
-    T max();
-    T min();
-    T sum();
-    float avg();
+    T max() const;
+    T min() const;
+    T sum() const;
+    float avg() const;
     void reverse();
     void shiftRight();
     void shiftRightRotation();
     void shiftLeft();
     void shiftLeftRotation();
     void insertSort(T number);
-    bool isSorted();
+    bool isSorted() const;
     void reArrange();
-    Array* merge(const Array &arr);
-    Array* arrayUnion(const Array &arr);
-    Array* arrayIntersection(const Array &arr);
-    Array* arrayDifference(const Array &arr);
+    Array* merge(const Array &arr) const;
+    Array* arrayUnion(const Array &arr) const;
+    Array* arrayIntersection(const Array &arr) const;
+    Array* arrayDifference(const Array &arr) const;
 
 };
 
@@ -118,7 +330,7 @@ void Array<T>::fillArrayWithRandomNumber(T minRange, T maxRange, bool sorted)
 }
 
 template<typename T>
-void Array<T>::display(const string message)
+void Array<T>::display(const string message) const
 {
     cout << message << "\n";
     for(size_t i{0}; i<length; i++)
@@ -221,7 +433,7 @@ size_t Array<T>::binarySearch(T key)
 }
 
 template<typename T>
-T Array<T>::get(const size_t index)
+T Array<T>::get(const size_t index) const
 {
     if(index>=0 && index<length)
     {
@@ -240,7 +452,7 @@ void Array<T>::set(size_t index, T value)
 }
 
 template<typename T>
-T Array<T>::max()
+T Array<T>::max() const
 {
     T max=A[0];
     for(size_t i{0}; i<length; i++)
@@ -254,7 +466,7 @@ T Array<T>::max()
 }
 
 template<typename T>
-T Array<T>::min()
+T Array<T>::min() const
 {
     T min=A[0];
     for(size_t i{0}; i<length; i++)
@@ -268,7 +480,7 @@ T Array<T>::min()
 }
 
 template<typename T>
-T Array<T>::sum()
+T Array<T>::sum() const
 {
     T sum=0;
     for(size_t i{0}; i<length; i++)
@@ -279,7 +491,7 @@ T Array<T>::sum()
 }
 
 template<typename T>
-float Array<T>::avg()
+float Array<T>::avg() const
 {
     return static_cast<float>(sum())/length;
 }
@@ -358,7 +570,7 @@ void Array<T>::insertSort(T number)
 }
 
 template<typename T>
-bool Array<T>::isSorted()
+bool Array<T>::isSorted() const
 {
     for(size_t i=0; i<length-1; i++)
     {
@@ -394,7 +606,7 @@ void Array<T>::reArrange()
 }
 
 template<typename T>
-Array<T>* Array<T>::merge(const Array &arr)
+Array<T>* Array<T>::merge(const Array &arr) const
 {
     Array<T> *arrMerged = new Array<T>(size+arr.size);
 
@@ -427,7 +639,7 @@ Array<T>* Array<T>::merge(const Array &arr)
 }
 
 template<typename T>
-Array<T>* Array<T>::arrayUnion(const Array &arr)
+Array<T>* Array<T>::arrayUnion(const Array &arr) const
 {
     Array<T> *arrMerged = new Array<T>(size+arr.size);
 
@@ -466,7 +678,7 @@ Array<T>* Array<T>::arrayUnion(const Array &arr)
 }
 
 template<typename T>
-Array<T>* Array<T>::arrayIntersection(const Array &arr)
+Array<T>* Array<T>::arrayIntersection(const Array &arr) const
 {
     Array<T> *arrMerged = new Array<T>(size+arr.size);
 
@@ -496,7 +708,7 @@ Array<T>* Array<T>::arrayIntersection(const Array &arr)
 }
 
 template<typename T>
-Array<T>* Array<T>::arrayDifference(const Array &arr)
+Array<T>* Array<T>::arrayDifference(const Array &arr) const
 {
     Array<T> *arrMerged = new Array<T>(size+arr.size);
 
@@ -533,11 +745,11 @@ Array<T>* Array<T>::arrayDifference(const Array &arr)
 
 int main (int argc, char *argv[])
 {
-    Array<float> A(10,5);
+    Array<float> A(10,4);
     Array<float> B(10,4);
 
-    A.display("Array A");
-    B.display("Array B");
+//    A.display("Array A");
+//    B.display("Array B");
 
     float minRange = 0.0;
     float maxRange = 10.0;
@@ -545,8 +757,8 @@ int main (int argc, char *argv[])
     A.fillArrayWithRandomNumber(minRange, maxRange);
     B.fillArrayWithRandomNumber(minRange, maxRange);
 
-    A.display("Array A");
-    B.display("Array B");
+//    A.display("Array A");
+//    B.display("Array B");
 
     Array<float> *C = new Array<float>;
 
@@ -561,6 +773,37 @@ int main (int argc, char *argv[])
 
     C = A.arrayDifference(B);
     C->display("Array C difference");
+
+    cout << (*C)[1] << endl;
+    auto isEqual = (A==*C);
+    cout << isEqual << endl;
+
+    A.display("Array A");
+    B.display("Array B");
+    auto D = A-B;
+    D.display("Array D");
+    A *= B;
+    A.display("Array A");
+    cout << A.sum() << endl;
+
+    // Testing move constructor and assignment operator
+    vector<Array<float>> v;
+    v.push_back(Array<float>{1,2,3});
+    v.push_back(Array<float>{4,5,6});
+    v.insert(v.begin()+2,Array<float>{7,8,9}); // insert at index 2
+    
+    size_t i{0};
+    for(const auto& array: v)
+    {
+        array.display("Element "+std::to_string(i));
+        i++;
+    }
+
+    // Check const
+    Array<float> x{1,2,3};
+    const Array<float> y{7,8,9};
+    C = x.merge(y);
+    C->display("Merged x and y");
 
     delete C;
 
