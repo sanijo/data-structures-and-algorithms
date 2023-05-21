@@ -9,6 +9,7 @@
 #include <random>
 #include <type_traits>
 #include <vector>
+#include <memory>
 
 using std::cout;
 using std::endl;
@@ -21,11 +22,12 @@ template<typename T>
 class Array
 {
 private:
-    T *A{nullptr};
+    std::unique_ptr<T[]> A;
     size_t size{0};
     size_t length{0};
 
-    void swap(const T &l, const T &r);
+    void swap(T &l, T &r);
+    void resize(size_t newSize);
 
 public:
     static_assert(
@@ -37,7 +39,7 @@ public:
         size(size),
         length(0)
     {
-        A = new T [size]{};
+        A = std::make_unique<T[]>(size);
     }
 
     Array<T>(size_t size, size_t length):
@@ -48,14 +50,14 @@ public:
         {
             throw std::invalid_argument("Length cannot be greater than size");
         }
-        A = new T [size]{};
+        A = std::make_unique<T[]>(size);
     }
 
     Array<T>(std::initializer_list<T> values):
         size(values.size()),
         length(values.size())
     {
-        A = new T [size];
+        A = std::make_unique<T[]>(size);
         size_t i=0;
         for(const T& value: values)
         {
@@ -67,56 +69,24 @@ public:
         size(obj.size),
         length(obj.length)
     {
-        A = new T [size];
+        A = std::make_unique<T[]>(size);
         for(size_t i=0; i<length; ++i)
         {
             A[i]=obj.A[i];
         }
     }
 
-    Array<T>& operator=(Array<T>&& obj) noexcept
-    {
-        if(debug)
-        {
-            cout << "In operator=(Array<T>&& obj)." << endl;
-        }
-        if(this != &obj)
-        {
-            // Free existing resource
-            delete [] A;
-            // Copy data pointer and rest of the data from source object
-            A=obj.A;
-            size=obj.size;
-            length=obj.length;
-            // Release the data pointer from the source object so that the
-            // destructor doesnt free memory multiple times
-            obj.A=nullptr;
-            obj.length=0;
-            obj.size=0;
-        }
-        return *this;
-    }
+    Array<T>(Array<T>&& obj) noexcept = default;
 
-    Array<T> (Array<T>&& obj) noexcept
-    {
-        if(debug)
-        {
-            cout << "In Array<T> (Array<T>&& obj). Moving resource." << endl;
-        }
-        if(this != &obj)
-        {
-            *this=std::move(obj);
-        }
-    }
+    Array<T>& operator=(Array<T>&& obj) noexcept = default;
 
     Array<T>& operator=(const Array<T>& obj)
     {
         if(this != &obj)
         {
-            delete [] A;
             size=obj.size;
             length=obj.length;
-            A = new T [size];
+            A = std::make_unique<T[]>(size);
             for(size_t i=0; i<length; ++i)
             {
                 A[i]=obj.A[i];
@@ -280,10 +250,7 @@ public:
         return *this = *this/obj;
     }
 
-    ~Array<T>() noexcept
-    {
-        delete [] A;
-    }
+    ~Array<T>() noexcept = default;
 
     void fillArrayWithRandomNumber(
         const T minRange, const T maxRange, bool sorted=true);
@@ -307,10 +274,10 @@ public:
     void insertSort(const T number);
     bool isSorted() const;
     void reArrange();
-    Array* merge(const Array &arr) const;
-    Array* arrayUnion(const Array &arr) const;
-    Array* arrayIntersection(const Array &arr) const;
-    Array* arrayDifference(const Array &arr) const;
+    std::unique_ptr<Array<T>> merge(const Array &arr) const;
+    std::unique_ptr<Array<T>> arrayUnion(const Array &arr) const;
+    std::unique_ptr<Array<T>> arrayIntersection(const Array &arr) const;
+    std::unique_ptr<Array<T>> arrayDifference(const Array &arr) const;
 };
 
 template<typename T>
@@ -334,7 +301,7 @@ void Array<T>::fillArrayWithRandomNumber(const T minRange, const T maxRange, boo
     }
     if(sorted)
     {
-        std::sort(A, A+length);
+        std::sort(A.get(), A.get()+length);
     }
 }
 
@@ -387,11 +354,23 @@ T Array<T>::remove(const size_t index)
 }
 
 template<typename T>
-void Array<T>::swap(const T &l, const T &r)
+void Array<T>::swap(T &l, T &r)
 {
     T tmp=l;
     l=r;
     r=tmp;
+}
+
+template<typename T>
+void Array<T>::resize(size_t newSize)
+{
+    std::unique_ptr<T[]> B = std::make_unique<int[]>(newSize);
+    for(size_t i=0; i<length; ++i)
+    {
+        B[i]=A[i];
+    }
+    A=std::move(B);
+    size=newSize;
 }
 
 template<typename T>
@@ -615,9 +594,9 @@ void Array<T>::reArrange()
 }
 
 template<typename T>
-Array<T>* Array<T>::merge(const Array &arr) const
+std::unique_ptr<Array<T>> Array<T>::merge(const Array &arr) const
 {
-    Array<T> *arrMerged = new Array<T>(size+arr.size);
+    auto arrMerged = std::make_unique<Array<T>>(size+arr.size);
 
     size_t i=0;
     size_t j=0;
@@ -648,9 +627,9 @@ Array<T>* Array<T>::merge(const Array &arr) const
 }
 
 template<typename T>
-Array<T>* Array<T>::arrayUnion(const Array &arr) const
+std::unique_ptr<Array<T>> Array<T>::arrayUnion(const Array &arr) const
 {
-    Array<T> *arrUnion = new Array<T>(size+arr.size);
+    auto arrUnion = std::make_unique<Array<T>>(size+arr.size);
 
     size_t i=0;
     size_t j=0;
@@ -687,9 +666,9 @@ Array<T>* Array<T>::arrayUnion(const Array &arr) const
 }
 
 template<typename T>
-Array<T>* Array<T>::arrayIntersection(const Array &arr) const
+std::unique_ptr<Array<T>> Array<T>::arrayIntersection(const Array &arr) const
 {
-    Array<T> *arrIntersect = new Array<T>(size+arr.size);
+    auto arrIntersect = std::make_unique<Array<T>>(size+arr.size);
 
     size_t i=0;
     size_t j=0;
@@ -717,9 +696,9 @@ Array<T>* Array<T>::arrayIntersection(const Array &arr) const
 }
 
 template<typename T>
-Array<T>* Array<T>::arrayDifference(const Array &arr) const
+std::unique_ptr<Array<T>> Array<T>::arrayDifference(const Array &arr) const
 {
-    Array<T> *arrDiff = new Array<T>(size+arr.size);
+    auto arrDiff = std::make_unique<Array<T>>(size+arr.size);
 
     size_t i=0;
     size_t j=0;
@@ -769,7 +748,7 @@ int main (int argc, char *argv[])
     A.display("Array A");
     B.display("Array B");
 
-    Array<float> *C = new Array<float>;
+    std::unique_ptr<Array<float>> C;
 
     C = A.merge(B);
     C->display("Array C merge");
@@ -818,8 +797,6 @@ int main (int argc, char *argv[])
     C->display("Merged x and y");
     C->set(0, 1.1);
     C->display("C->set(0,1.1)");
-
-    delete C;
 
     return 0;
 }
